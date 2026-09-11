@@ -74,11 +74,6 @@ and heterogeneous variants):
   growth rate. ω > 0 ⟺ G_max > 1 for stable A. Metric-relative.
 - **G_max** = sup_{t ≥ 0} ‖e^{At}‖₂ — peak transient gain.
 
-## Data availability
-
-Zenodo DOI (source code, notebook, Jacobians, sensitivity sweep):
-minted at manuscript acceptance.
-
 ## Contact
 
 tommy.terooatea@byu.edu
