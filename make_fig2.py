@@ -88,14 +88,22 @@ def load_descriptors():
 
 
 def load_sensitivity():
+    """Read the distribution over 500 random per-state metric probes.
+
+    Returns per-model, per-descriptor: baseline, p05, p95, and sign_flip
+    (fraction of draws whose sign flips relative to baseline, or None
+    when the descriptor's sign is not meaningful).
+    """
     ranges = {}
-    with (RESULTS / "sensitivity.csv").open() as f:
+    with (RESULTS / "sensitivity_dist.csv").open() as f:
         for r in csv.DictReader(f):
-            ranges.setdefault(r["model"], {})[r["descriptor"]] = (
-                float(r["baseline"]),
-                float(r["min_over_scalings"]),
-                float(r["max_over_scalings"]),
-            )
+            sf = r["frac_sign_flip"]
+            ranges.setdefault(r["model"], {})[r["descriptor"]] = {
+                "baseline": float(r["baseline"]),
+                "p05": float(r["p05"]),
+                "p95": float(r["p95"]),
+                "sign_flip": float(sf) if sf != "" else None,
+            }
     return ranges
 
 
@@ -123,13 +131,15 @@ def panel_a(ax, desc, sens):
 
     lookup = {k: desc[(k, "A")] for k in DISPLAY}
 
-    # ω sign-flippers under rescaling — flagged with a distinct amber bar
-    # so the reader sees the crossing rather than reads it out of the axis.
+    # ω sign-flippers under 500 random per-state metric probes — flagged
+    # amber when the sign of ω flips in >=50 % of draws (i.e., the
+    # assignment is decided by the metric as often as by the operator).
     SIGN_FLIP_COLOR = "#d97706"
+    SIGN_FLIP_THRESHOLD = 0.50
     sign_flip = set()
     for key in lookup:
-        base, omin, omax = sens[key]["omega"]
-        if omin < 0 < omax:
+        sf = sens[key]["omega"]["sign_flip"]
+        if sf is not None and sf >= SIGN_FLIP_THRESHOLD:
             sign_flip.add(key)
 
     # Label positions. All Q = 0 models pile up on the y-axis; symlog
@@ -154,9 +164,11 @@ def panel_a(ax, desc, sens):
     }
 
     # Point + range: use error-bar caps so the marker is unambiguously
-    # the baseline value and the bar reads as its rescaling range.
+    # the baseline value and the bar reads as its 5-95 % percentile range
+    # over 500 random per-state metric probes.
     for key, r in lookup.items():
-        base, omin, omax = sens[key]["omega"]
+        s = sens[key]["omega"]
+        omin, omax = s["p05"], s["p95"]
         Q, w = r["Q"], r["omega"]
         omin_c = max(omin, ylim[0])
         omax_c = min(omax, ylim[1])
@@ -184,8 +196,8 @@ def panel_a(ax, desc, sens):
     # Sign-flip flag — placed in the empty upper-mid region of the panel
     # where there is no data and no region label, so it reads as a key
     # rather than as a point annotation.
-    ax.text(1.30, 3.7,
-            "amber  =  ω changes sign under rescaling",
+    ax.text(1.20, 2.0,
+            "amber  =  ω sign-flips in ≥ 50 % of 500 metric probes",
             ha="left", va="center",
             fontsize=8.0, color=SIGN_FLIP_COLOR, style="italic",
             zorder=6)
